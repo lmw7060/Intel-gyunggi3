@@ -107,9 +107,6 @@ char rxBuf2[RX_BUF_SIZE];  		// UART2
 char dmaBuf[RX_BUF_SIZE];
 int  head = 0, tail = 0;
 int  rxIdx1 = 0, rxIdx2 = 0;
-int op = -1;  // 0 ~ 3 : NULL, CR, CRLF, LFCR
-char *EL[] = { "\0", "\r","\r\n","\n\r" };
-
 char * GetDmaData()	// uart2
 {
 	int len = 0;
@@ -146,14 +143,12 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 	else if(huart == &huart2)
 	{
 		rxBuf2[rxIdx2++] = rx;
-		if(rx == '\0' || rx == '\r' || rx == '\n')  // BT>AT+NAME\r
+		if(rx == '\0' || rx == '\r' || rx == '\n')  // BT>AT????
 		{
 			if(strncmp(rxBuf2, "BT>", 3) == 0)
 			{
-				HAL_UART_Transmit(&huart1, rxBuf2 + 3, rxIdx2 - 4, 10);
-				if(op>0) HAL_UART_Transmit(&huart1, EL[op], strlen(EL[op]), 10);
-				HAL_UART_Transmit(&huart2, rxBuf2 + 3, rxIdx2 - 4, 10);
-				HAL_UART_Transmit(&huart2, "\r\n", 2, 10);
+				HAL_UART_Transmit(&huart1, rxBuf2, rxIdx2, 10);
+				HAL_UART_Transmit(&huart1, "\r\n", 2, 10);
 			}
 			else
 			{
@@ -246,18 +241,15 @@ int main(void)
   MX_USART1_UART_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
+  int k = -1;
   printf("\033[1J\033[1;1HUART Program Started....\r\n");
   while(1)
   {
-	  printf("Input End-Line option\r\n");
-	  printf("	'0' : NULL\r\n");
-	  printf("	'1' : CR\r\n");
-	  printf("	'2' : CRLF\r\n");
-	  printf("	'3' : LFCR\r\n");
-	  scanfEx1(&op);
-	  if(op >= 0 && op < 4) break;
+	  printf("Input '2' Key to start\r\n");
+	  scanfEx1(&k);
+	  if(k == 2) break;
   }
-  printf("OK....%d\r\n", op);
+  printf("OK....\r\n");
 
   //HAL_UART_Receive_DMA(&huart2, rxBuf, RX_BUF_SIZE);
   HAL_UART_Receive_IT(&huart2, &rx, 1);

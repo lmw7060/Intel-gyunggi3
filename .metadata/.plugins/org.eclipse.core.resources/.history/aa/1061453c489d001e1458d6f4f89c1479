@@ -63,12 +63,12 @@ static void MX_TIM3_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-int __io_putchar(int ch)	// printf
+int __io_putchar(int ch)  // printf
 {
 	HAL_UART_Transmit(&huart2, &ch, 1, 10);
 	return ch;
 }
-int __io_getchar(void)		// console input (scanf)
+int __io_getchar(void)	// scanf
 {
 	char ch = 0;
 
@@ -78,7 +78,7 @@ int __io_getchar(void)		// console input (scanf)
 		HAL_StatusTypeDef r = HAL_UART_Receive(&huart2, &ch, 1, 10);
 		if(r == HAL_OK) break;
 	}
-	HAL_UART_Transmit(&huart2, &ch, 1, 10);	 // echo
+	HAL_UART_Transmit(&huart2, &ch, 1, 10);
 	return ch;
 }
 int scanfEx1(int *k)  // INT VALUE
@@ -98,19 +98,15 @@ int scanfEx1(int *k)  // INT VALUE
 	*k = atoi(buf);
 	return 1;
 }
-int GetKey()  // interface function
+int GetKey()
 {
 	return __io_getchar();
 }
-char rxBuf1[RX_BUF_SIZE], rx;	// UART1
-char rxBuf2[RX_BUF_SIZE];  		// UART2
+char rxBuf[RX_BUF_SIZE], rx;
 char dmaBuf[RX_BUF_SIZE];
 int  head = 0, tail = 0;
-int  rxIdx1 = 0, rxIdx2 = 0;
-int op = -1;  // 0 ~ 3 : NULL, CR, CRLF, LFCR
-char *EL[] = { "\0", "\r","\r\n","\n\r" };
-
-char * GetDmaData()	// uart2
+int  rxIdx = 0;
+char * GetDmaData()
 {
 	int len = 0;
 	tail = RX_BUF_SIZE - huart2.hdmarx->Instance->NDTR;
@@ -118,52 +114,25 @@ char * GetDmaData()	// uart2
 	if(head == tail) return 0;
 	if(tail > head)
 	{
-		memcpy(dmaBuf, rxBuf2 + head, tail - head); len = tail - head;
+		memcpy(dmaBuf, rxBuf + head, tail - head); len = tail - head;
 	}
 	else // tail < head
 	{
-		memcpy(dmaBuf, rxBuf2 + head, RX_BUF_SIZE - head);
-		memcpy(dmaBuf + RX_BUF_SIZE - head, rxBuf2, tail);
+		memcpy(dmaBuf, rxBuf + head, RX_BUF_SIZE - head);
+		memcpy(dmaBuf + RX_BUF_SIZE - head, rxBuf, tail);
 		len = RX_BUF_SIZE - head + tail;
 	}
 	dmaBuf[len] = 0;
 	head = tail;
 	return dmaBuf;
 }
-
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-	if(huart == &huart1)
+	if(huart->Instance == huart1)
 	{
-		rxBuf1[rxIdx1++] = rx;
-		if(rx == '\0' || rx == '\r' || rx == '\n')
-		{
-			HAL_UART_Transmit(&huart2, rxBuf1, rxIdx1, 10);
-			HAL_UART_Transmit(&huart2, "\r\n", 2, 10);	// putty display out
-			rxIdx1 = 0;
-		}
+		HAL_UART_Transmit(&huart2, &rx, 1, 10);
+		HAL_UART_Receive_IT(huart, &rx, 1);
 	}
-	else if(huart == &huart2)
-	{
-		rxBuf2[rxIdx2++] = rx;
-		if(rx == '\0' || rx == '\r' || rx == '\n')  // BT>AT+NAME\r
-		{
-			if(strncmp(rxBuf2, "BT>", 3) == 0)
-			{
-				HAL_UART_Transmit(&huart1, rxBuf2 + 3, rxIdx2 - 4, 10);
-				if(op>0) HAL_UART_Transmit(&huart1, EL[op], strlen(EL[op]), 10);
-				HAL_UART_Transmit(&huart2, rxBuf2 + 3, rxIdx2 - 4, 10);
-				HAL_UART_Transmit(&huart2, "\r\n", 2, 10);
-			}
-			else
-			{
-				HAL_UART_Transmit(&huart2, rxBuf2, rxIdx2, 10);
-				HAL_UART_Transmit(&huart2, "\r\n", 2, 10);
-			}
-			rxIdx2 = 0;
-		}
-	}
-	HAL_UART_Receive_IT(huart, &rx, 1);
 }
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
@@ -181,7 +150,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 	  char *str = GetDmaData();  // str = NULL, if no data
 	  if(str)
 	  {
-		  printf("[Receive Buffer] %s\r\n", rxBuf2);
+		  printf("[Receive Buffer] %s\r\n", rxBuf);
 		  printf("[Receive String] %s\r\n\n", str);
 	  }
 	}
@@ -246,21 +215,17 @@ int main(void)
   MX_USART1_UART_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
+  int k = -1;
   printf("\033[1J\033[1;1HUART Program Started....\r\n");
   while(1)
   {
-	  printf("Input End-Line option\r\n");
-	  printf("	'0' : NULL\r\n");
-	  printf("	'1' : CR\r\n");
-	  printf("	'2' : CRLF\r\n");
-	  printf("	'3' : LFCR\r\n");
-	  scanfEx1(&op);
-	  if(op >= 0 && op < 4) break;
+	  printf("Input '2' Key to start\r\n");
+	  scanfEx1(&k);
+	  if(k == 2) break;
   }
-  printf("OK....%d\r\n", op);
+  printf("OK....\r\n");
 
-  //HAL_UART_Receive_DMA(&huart2, rxBuf, RX_BUF_SIZE);
-  HAL_UART_Receive_IT(&huart2, &rx, 1);
+  HAL_UART_Receive_DMA(&huart2, rxBuf, RX_BUF_SIZE);
   HAL_UART_Receive_IT(&huart1, &rx, 1);
   /* USER CODE END 2 */
 
