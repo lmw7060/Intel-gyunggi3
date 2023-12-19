@@ -5,7 +5,7 @@
   * @brief          : Main program body
   ******************************************************************************
   * @attention
-  *
+  * 깃허브 업로드 테스트
   * Copyright (c) 2023 STMicroelectronics.
   * All rights reserved.
   *
@@ -167,10 +167,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 }
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-	  char *str = GetDmaData();  // str = NULL, if no data
-	  if(str)
+	  //char *str = GetDmaData();  // str = NULL, if no data
+	  if(rxIdx1)
 	  {
-		  printf("%s\r\n", str);
+		  printf("%s\r\n", rxBuf1); rxIdx1 = 0;
 	  }
 }
 
@@ -259,6 +259,7 @@ int main(void)
   }
   printf("OK....%d\r\n", op);
 
+  HAL_TIM_Base_Start_IT(&htim3);
   //HAL_UART_Receive_DMA(&huart2, rxBuf, RX_BUF_SIZE);
   HAL_UART_Receive_IT(&huart2, &rx, 1);
   HAL_UART_Receive_IT(&huart1, &rx, 1);
